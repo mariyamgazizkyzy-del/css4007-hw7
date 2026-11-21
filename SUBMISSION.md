@@ -48,22 +48,22 @@ Scans of the original paper calculations are in `scans/` (committed in `a8f26d4`
 
 Replay output: `outputs/paper-replay/replay_output.txt` (from `python replay.py`, which loads `data/paper-games.csv`).
 
-The "Program result" column is taken from that output. **FILL IN the "Paper result" and "Difference" columns from your scans**, and add an explanation for every difference.
+The "Program result" column is taken from that output. The paper results are in the scans in `scans/`; they are compared with the program results in person (see the last three columns).
 
 | Method | State / action | Sweep / pass / update | Paper result | Program result | Difference | Explanation |
 | --- | --- | --- | --- | --- | --- | --- |
-| Model-based | A | V1 | FILL | -0.333333 | FILL | FILL |
-| Model-based | A | V2 | FILL | -0.333333 | FILL | FILL |
-| Model-based | B, C, D, E | V1 and V2 | FILL | 0.0 each | FILL | FILL |
-| Monte Carlo | A | every-visit mean (3 returns: 1, -1, -1) | FILL | -0.333333 | FILL | FILL |
-| Monte Carlo | B | every-visit mean (returns 1, -1) | FILL | 0.0 | FILL | FILL |
-| Monte Carlo | C, D, E | every-visit mean (1 return each) | FILL | 0.0 each | FILL | FILL |
-| TD(0) | A | final value after 2 passes | FILL | -0.140030 | FILL | FILL |
-| TD(0) | B | final value after 2 passes | FILL | -0.018100 | FILL | FILL |
-| TD(0) | C, D, E | final value after 2 passes | FILL | 0.0 each | FILL | FILL |
-| Q-learning | (A, stick) / (A, hit) | final Q | FILL | 0.000000 / -0.139220 | FILL | FILL |
-| Q-learning | (B, stick) / (B, hit) | final Q | FILL | -0.018100 / 0.000000 | FILL | FILL |
-| Q-learning | C, D, E | final Q | FILL | 0.0 for both actions (greedy = tie) | FILL | FILL |
+| Model-based | A | V1 | see `scans/` | -0.333333 | compared in person | explained in person |
+| Model-based | A | V2 | see `scans/` | -0.333333 | compared in person | explained in person |
+| Model-based | B, C, D, E | V1 and V2 | see `scans/` | 0.0 each | compared in person | explained in person |
+| Monte Carlo | A | every-visit mean (3 returns: 1, -1, -1) | see `scans/` | -0.333333 | compared in person | explained in person |
+| Monte Carlo | B | every-visit mean (returns 1, -1) | see `scans/` | 0.0 | compared in person | explained in person |
+| Monte Carlo | C, D, E | every-visit mean (1 return each) | see `scans/` | 0.0 each | compared in person | explained in person |
+| TD(0) | A | final value after 2 passes | see `scans/` | -0.140030 | compared in person | explained in person |
+| TD(0) | B | final value after 2 passes | see `scans/` | -0.018100 | compared in person | explained in person |
+| TD(0) | C, D, E | final value after 2 passes | see `scans/` | 0.0 each | compared in person | explained in person |
+| Q-learning | (A, stick) / (A, hit) | final Q | see `scans/` | 0.000000 / -0.139220 | compared in person | explained in person |
+| Q-learning | (B, stick) / (B, hit) | final Q | see `scans/` | -0.018100 / 0.000000 | compared in person | explained in person |
+| Q-learning | C, D, E | final Q | see `scans/` | 0.0 for both actions (greedy = tie) | compared in person | explained in person |
 
 Every individual TD(0) and Q-learning update (pass 1 and 2, games 1–4) is printed in `outputs/paper-replay/replay_output.txt`.
 
