@@ -1,4 +1,4 @@
- HW7 submission — Blackjack
+# HW7 submission — Blackjack
 
 Public fork: https://github.com/mariyamgazizkyzy-del/css4007-hw7
 
@@ -88,12 +88,26 @@ Files:
 - Readable value tables after 10,000 games, usable ace and no usable ace separately: `outputs/fixed_policy_estimates/tables_seed<seed>_ace.md` and `tables_seed<seed>_noace.md`
 - Counts of missing estimates, differences between methods, most and least visited states: `outputs/fixed_policy_estimates/d1_summary.md` (made by `d1_tables.py`)
 
-**FILL IN after running `python d1_tables.py`** (use the numbers in `d1_summary.md`):
-1. Two or three frequently visited and two or three rarely visited states, with their visit counts and the three estimates.
-2. Whether the estimates stabilise as the number of games grows (compare 100, 1,000 and 10,000 games; the "mean abs diff" columns help).
-3. Which model-based values, if any, were missing or affected by missing successor information, and how many estimates were missing for each method.
+**Coverage and missing estimates.** The number of states that had been visited (and therefore have an estimate) grew with the number of games: 96 / 116 / 118 states after 100 games (seeds 11 / 22 / 33), 243 / 245 / 247 after 1,000 games, and all 280 observations (player sums 4–21 without a usable ace, 12–21 with a usable ace, dealer 1–10) after 10,000 games for every seed. States not yet visited are simply not in the checkpoint files; they are not filled with zeros. Among the visited states, no estimate was missing for any method at any checkpoint (0 missing for model-based, Monte Carlo and TD(0), see `d1_summary.md`). So no model-based value was affected by missing successor information in these runs: every nonterminal successor in a complete game is itself a decision state later in the same game, so it is visited and has counts of its own.
 
-General points that hold by construction of the three methods: Monte Carlo averages complete game returns, so a rare state has few returns and a noisy mean; TD(0) with alpha = 0.1 weights recent visits more, so it keeps fluctuating around the true value instead of settling exactly; the model-based method uses only observed transitions, so it gives no estimate for a state whose observed successor has no estimate, and it never uses the game rules.
+**Frequently visited states.** The most visited states are those with a high player sum against a dealer 10, because the policy sticks at 20/21 and the dealer card 10 is the most likely card.
+- Seed 11, state (20, 10, no ace), 606 visits: model-based +0.416, Monte Carlo +0.416, TD(0) +0.439. Model-based and Monte Carlo are identical at all three checkpoints (for example +0.333 / +0.467 / +0.416) because sticking at 20 ends the game immediately, so the model's mean reward and the mean return are the same number. TD(0) is close here but not identical.
+- Seed 11, state (19, 10, no ace), 447 visits: model-based -0.729, Monte Carlo -0.736, TD(0) -0.723. All three methods agree within about 0.013.
+- Seed 22, state (20, 10, no ace), 633 visits: model-based and Monte Carlo +0.417, but TD(0) only +0.094 (it was +0.285 after 1,000 games). With alpha = 0.1, TD(0) weights roughly the last ten visits most, so even a state with hundreds of visits keeps fluctuating around the true value.
+
+**Rarely visited states.** For states with only one to four visits the three methods disagree a lot.
+- Seed 11, (4, 9, no ace), 1 visit: Monte Carlo +1.000, model-based -0.488, TD(0) 0.000. Monte Carlo with a single visit is just the outcome of that one game.
+- Seed 11, (4, 5, no ace), 2 visits: Monte Carlo -1.000, model-based -0.554, TD(0) -0.032. Seed 11, (12, 8, usable ace), 1 visit: Monte Carlo -1.000, model-based -0.114, TD(0) -0.007.
+- Seed 22, (12, 3, usable ace), 2 visits: Monte Carlo -0.500, model-based +0.180, TD(0) -0.026. Seed 33, (12, 4, usable ace), 4 visits: Monte Carlo 0.000, model-based -0.574, TD(0) -0.104.
+
+Monte Carlo gives extreme, noisy values (-1, 0 or +1 from one or two games). TD(0) stays close to its initial value 0 because one visit moves the value only 10% of the way toward the target, so it is biased toward the initialisation in rare states. The model-based values are the most stable here: they use the observed one-step transitions and rewards of the rare state but take the values of its successors from states that were visited much more often, and they fall in the same range (about -0.5 to -0.7) as the frequent neighbouring states.
+
+**Do the estimates stabilise?** Yes, but not monotonically in every measure. The mean absolute difference between methods over all visited states was, for seeds 11 / 22 / 33:
+- model-based vs TD(0): 0.622 / 0.747 / 0.774 after 100 games, 0.327 / 0.407 / 0.405 after 1,000 games, 0.126 / 0.128 / 0.119 after 10,000 games;
+- Monte Carlo vs TD(0): 0.712 / 0.780 / 0.828, then 0.420 / 0.489 / 0.473, then 0.165 / 0.177 / 0.160;
+- model-based vs Monte Carlo: 0.180 / 0.051 / 0.103, then 0.267 / 0.247 / 0.255, then 0.103 / 0.111 / 0.110. This one first increases because after 100 games most visited states have only one or two visits, where both methods mostly reproduce the same single outcomes, and after 1,000 games many newly visited rare states enter the average.
+
+The remaining difference of about 0.10–0.18 after 10,000 games is dominated by rare states, which still have very few visits. The three seeds give the same picture (compare the frequent state (20, 10, no ace): Monte Carlo +0.416 / +0.417 / +0.455), while TD(0) differs most between seeds (+0.439 / +0.094 / +0.493).
 
 ### Q-learning and baseline evaluation
 
@@ -149,5 +163,5 @@ Training and evaluation are shown in separate figures because they measure diffe
 - [x] Python, Gymnasium and other dependency versions recorded
 - [x] Exact reproduction and experiment commands added
 - [x] `.env`, API keys and other secrets are not committed
-- [ ] All `FILL` placeholders in this file replaced using actual results
+- [ ] All `FILL` placeholders in this file replaced using actual results (remaining: AI-use, Part A–C scans, Part C paper columns)
 - [ ] AI-use declaration accurately describes the assistance used
