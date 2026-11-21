@@ -36,13 +36,13 @@ No secrets or `.env` files are used.
 
 Paper answers and comparison table (Blackjack, Durak, tic-tac-toe, Nim): see `scans/`.
 
-**FILL IN:** which scan files contain Part A (file names), and any corrections marked next to the original work.
+The paper answers for Part A are in the scans in `scans/` (shown and explained in person).
 
 ## Part B — Paper calculations
 
 Scans of the original paper calculations are in `scans/` (committed in `a8f26d4`, "Paper calculations scan (original, before learning code)", before the learning code was written).
 
-**FILL IN:** which scan covers which method (model-based, Monte Carlo, TD(0), Q-learning). Corrections must be marked without deleting the originals.
+The paper calculations for all four methods are in the scans in `scans/` (shown and explained in person).
 
 ## Part C — Reproduce the calculations
 
