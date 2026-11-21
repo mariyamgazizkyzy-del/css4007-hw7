@@ -1,11 +1,17 @@
+
 from collections import defaultdict
+import numpy as np
+
 from common import END
 
 ALPHA = 0.1
 GAMMA = 1.0
 ACTIONS = (0, 1)
 
+
 class ModelBasedEvaluator:
+    """Estimate transitions and evaluate a fixed policy."""
+
     def __init__(self):
         self.counts = defaultdict(int)
         self.reward_sums = defaultdict(float)
@@ -14,26 +20,37 @@ class ModelBasedEvaluator:
 
     def update(self, s, a, r, s_next):
         key = (s, a)
+        triple = (s, a, s_next)
+
         self.counts[key] += 1
-        self.reward_sums[key] += r
-        self.transitions[(s, a, s_next)] += 1
+        self.reward_sums[triple] += r
+        self.transitions[triple] += 1
+
         self.states.add(s)
+        if s_next != END:
+            self.states.add(s_next)
 
     def evaluate(self, policy, tol=1e-6, max_sweeps=10_000):
         V = {s: 0.0 for s in self.states}
         V[END] = 0.0
 
+        converged = False
+        sweeps = 0
+
         for sweep in range(max_sweeps):
             new_V = V.copy()
+
             for s in self.states:
                 a = policy(s)
                 key = (s, a)
+                total = self.counts.get(key, 0)
 
-                if key not in self.counts:
+                if total == 0:
+                    new_V[s] = None
                     continue
 
-                total = self.counts[key]
                 value = 0.0
+                observed = True
 
                 for (state, action, s_next), count in self.transitions.items():
                     if (state, action) != key:
@@ -41,29 +58,49 @@ class ModelBasedEvaluator:
 
                     probability = count / total
                     mean_reward = (
-                        self.reward_sums[key] / total
+                        self.reward_sums[(state, action, s_next)] / count
                     )
+
+                    if s_next == END:
+                        next_value = 0.0
+                    else:
+                        next_value = V.get(s_next)
+
+                    if next_value is None:
+                        observed = False
+                        break
+
                     value += probability * (
-                        mean_reward + GAMMA * V.get(s_next, 0.0)
+                        mean_reward + GAMMA * next_value
                     )
 
-                new_V[s] = value
+                new_V[s] = value if observed else None
 
-            delta = max(
-                (abs(new_V[s] - V[s]) for s in self.states),
-                default=0.0
-            )
+            deltas = [
+                abs(new_V[s] - V[s])
+                for s in self.states
+                if new_V[s] is not None and V[s] is not None
+            ]
+
+            delta = max(deltas, default=0.0)
             V = new_V
+            sweeps = sweep + 1
 
-            if delta < tol:
-                return V
+            # tol=0 disables early stopping, allowing exact sweep counts.
+            if tol > 0 and delta < tol:
+                converged = True
+                break
 
-        raise RuntimeError("Model-based evaluation did not converge")
+        return V, converged, sweeps
+
 
 class MonteCarloEvaluator:
+    """Every-visit Monte Carlo evaluator."""
+
     def __init__(self):
         self.returns_sum = defaultdict(float)
         self.returns_count = defaultdict(int)
+        self.visits = defaultdict(int)
         self.V = {}
 
     def add_game(self, transitions):
@@ -71,37 +108,50 @@ class MonteCarloEvaluator:
 
         for s, a, r, s_next in reversed(transitions):
             G = r + GAMMA * G
+
             self.returns_sum[s] += G
             self.returns_count[s] += 1
+            self.visits[s] += 1
+
             self.V[s] = (
                 self.returns_sum[s] / self.returns_count[s]
             )
 
+
 class TD0Evaluator:
+    """TD(0) state-value evaluator."""
+
     def __init__(self):
         self.V = {END: 0.0}
+        self.visits = defaultdict(int)
 
     def update(self, s, r, s_next):
         old_value = self.V.get(s, 0.0)
-        next_value = 0.0 if s_next == END else self.V.get(s_next, 0.0)
+
+        if s_next == END:
+            next_value = 0.0
+        else:
+            next_value = self.V.get(s_next, 0.0)
 
         self.V[s] = old_value + ALPHA * (
             r + GAMMA * next_value - old_value
         )
 
-class QLearner:
-    def __init__(self, epsilon=0.1, seed=42):
-        import numpy as np
+        self.visits[s] += 1
 
+
+class QLearner:
+    """Epsilon-greedy Q-learning agent."""
+
+    def __init__(self, epsilon=0.2, seed=11):
         self.epsilon = epsilon
         self.Q = defaultdict(lambda: {0: 0.0, 1: 0.0})
+        self.visits = defaultdict(int)
 
         self.explore_rng = np.random.default_rng(seed)
         self.tie_rng = np.random.default_rng(seed + 1)
 
     def choose_action(self, s):
-        import numpy as np
-
         if self.explore_rng.random() < self.epsilon:
             return int(self.explore_rng.choice(ACTIONS))
 
@@ -109,7 +159,8 @@ class QLearner:
         best_value = max(values.values())
 
         best_actions = [
-            action for action, value in values.items()
+            action
+            for action, value in values.items()
             if value == best_value
         ]
 
@@ -119,8 +170,13 @@ class QLearner:
         if s_next == END:
             target = r
         else:
-            target = r + GAMMA * max(self.Q[s_next].values())
+            next_values = self.Q.get(
+                s_next, {0: 0.0, 1: 0.0}
+            )
+            target = r + GAMMA * max(next_values.values())
 
         self.Q[s][a] += ALPHA * (
             target - self.Q[s][a]
         )
+
+        self.visits[(s, a)] += 1
