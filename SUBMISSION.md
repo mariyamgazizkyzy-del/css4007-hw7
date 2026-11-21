@@ -1,540 +1,153 @@
-# HW7 submission — Blackjack
+ HW7 submission — Blackjack
+
+Public fork: https://github.com/mariyamgazizkyzy-del/css4007-hw7
 
 ## AI-use declaration
 
-Which tools did you use, and for what?
+Claude (Anthropic) was used for: writing `d2_qlearn.py`, `d3_eval.py` and `plots.py` from my specification; writing the PowerShell commands used to copy and run the scripts; reviewing the code and the printed results; and helping to word the explanations in Part D. I ran all programs myself on my machine and the numbers below are copied from the saved outputs in `outputs/`.
+
+**FILL IN / CHECK:** state here which tools helped with Parts A–C and with `common.py`, `learners.py`, `d1_collect.py`, `d1_estimate.py`, `replay.py`. This declaration must describe the help you really used.
 
 ## Setup and reproduction
 
-Record dependency versions, installation steps and exact commands for the
-paper replay, training and frozen-policy evaluation.
+Versions (from `pip install` output): Python 3.14 (Windows, 64-bit), gymnasium 1.4.0, numpy 2.5.3, matplotlib 3.11.2. Environment: `Blackjack-v1`, `natural=False`, `sab=False`. alpha = 0.1, gamma = 1.0, all tables start at zero.
+
+Installation:
+
+```
+pip install gymnasium numpy matplotlib
+```
+
+Commands, in this order, from the repository folder:
+
+```
+python replay.py            # Part C, output saved in outputs/paper-replay/
+python d1_collect.py        # Part D1: 10,000 games for seeds 11, 22, 33
+python d1_estimate.py       # Part D1: estimates at 100, 1,000, 10,000 games
+python d1_tables.py         # Part D1: readable tables and summary from the saved csv files
+python d2_qlearn.py         # Part D2: 50,000 training games, 3 seeds x epsilon 0.2 and 0
+python d3_eval.py           # Part D3: frozen-policy evaluation, 10,000 new games
+python plots.py             # training curves and evaluation plot
+```
+
+No secrets or `.env` files are used.
 
 ## Part A — Count states and actions
 
-Link your paper answers and comparison table for Blackjack, Durak, tic-tac-toe
-and Nim. Show formulas, assumptions, example legal actions and hidden information.
+Paper answers and comparison table (Blackjack, Durak, tic-tac-toe, Nim): see `scans/`.
+
+**FILL IN:** which scan files contain Part A (file names), and any corrections marked next to the original work.
 
 ## Part B — Paper calculations
 
-Link scans/photos of all four methods. Commit the original paper work before
-implementing learners. Keep originals alongside any corrections.
+Scans of the original paper calculations are in `scans/` (committed in `a8f26d4`, "Paper calculations scan (original, before learning code)", before the learning code was written).
+
+**FILL IN:** which scan covers which method (model-based, Monte Carlo, TD(0), Q-learning). Corrections must be marked without deleting the originals.
 
 ## Part C — Reproduce the calculations
 
-Link the fixed-history replay output in outputs/paper-replay/.
+Replay output: `outputs/paper-replay/replay_output.txt` (from `python replay.py`, which loads `data/paper-games.csv`).
+
+The "Program result" column is taken from that output. **FILL IN the "Paper result" and "Difference" columns from your scans**, and add an explanation for every difference.
 
 | Method | State / action | Sweep / pass / update | Paper result | Program result | Difference | Explanation |
 | --- | --- | --- | --- | --- | --- | --- |
+| Model-based | A | V1 | FILL | -0.333333 | FILL | FILL |
+| Model-based | A | V2 | FILL | -0.333333 | FILL | FILL |
+| Model-based | B, C, D, E | V1 and V2 | FILL | 0.0 each | FILL | FILL |
+| Monte Carlo | A | every-visit mean (3 returns: 1, -1, -1) | FILL | -0.333333 | FILL | FILL |
+| Monte Carlo | B | every-visit mean (returns 1, -1) | FILL | 0.0 | FILL | FILL |
+| Monte Carlo | C, D, E | every-visit mean (1 return each) | FILL | 0.0 each | FILL | FILL |
+| TD(0) | A | final value after 2 passes | FILL | -0.140030 | FILL | FILL |
+| TD(0) | B | final value after 2 passes | FILL | -0.018100 | FILL | FILL |
+| TD(0) | C, D, E | final value after 2 passes | FILL | 0.0 each | FILL | FILL |
+| Q-learning | (A, stick) / (A, hit) | final Q | FILL | 0.000000 / -0.139220 | FILL | FILL |
+| Q-learning | (B, stick) / (B, hit) | final Q | FILL | -0.018100 / 0.000000 | FILL | FILL |
+| Q-learning | C, D, E | final Q | FILL | 0.0 for both actions (greedy = tie) | FILL | FILL |
+
+Every individual TD(0) and Q-learning update (pass 1 and 2, games 1–4) is printed in `outputs/paper-replay/replay_output.txt`.
 
 ## Part D — Simulated games
 
 ### Fixed-policy value estimates
 
-Link the shared logs, checkpoint value tables and visit counts. Explain
-missing states and differences among model-based, Monte Carlo and TD estimates.
+Policy: hit below 20, stick at 20 or 21. For seeds 11, 22 and 33 the same 10,000 saved games, in the same order, were fed to model-based evaluation, every-visit Monte Carlo and TD(0). Cut-off games (100 actions without ending) would be excluded from all learners; there were none.
+
+| Seed | Games collected | Transitions | Cut-offs | Model converged (sweeps at 100 / 1,000 / 10,000 games) |
+| --- | --- | --- | --- | --- |
+| 11 | 10,000 | 17,958 | 0 | yes (6 / 12 / 11) |
+| 22 | 10,000 | 18,036 | 0 | yes (6 / 10 / 11) |
+| 33 | 10,000 | 17,912 | 0 | yes (5 / 11 / 11) |
+
+Model evaluation used tolerance 1e-6 and at most 10,000 sweeps. A missing estimate is an empty cell in the csv files (never a filled-in zero).
+
+Files:
+- Shared game logs: `outputs/fixed_policy_logs/games_seed11.csv`, `games_seed22.csv`, `games_seed33.csv`
+- Checkpoint value tables with visit counts: `outputs/fixed_policy_estimates/seed<seed>_games<100|1000|10000>.csv`
+- Model convergence: `outputs/fixed_policy_estimates/model_based_convergence.csv`
+- Readable value tables after 10,000 games, usable ace and no usable ace separately: `outputs/fixed_policy_estimates/tables_seed<seed>_ace.md` and `tables_seed<seed>_noace.md`
+- Counts of missing estimates, differences between methods, most and least visited states: `outputs/fixed_policy_estimates/d1_summary.md` (made by `d1_tables.py`)
+
+**FILL IN after running `python d1_tables.py`** (use the numbers in `d1_summary.md`):
+1. Two or three frequently visited and two or three rarely visited states, with their visit counts and the three estimates.
+2. Whether the estimates stabilise as the number of games grows (compare 100, 1,000 and 10,000 games; the "mean abs diff" columns help).
+3. Which model-based values, if any, were missing or affected by missing successor information, and how many estimates were missing for each method.
+
+General points that hold by construction of the three methods: Monte Carlo averages complete game returns, so a rare state has few returns and a noisy mean; TD(0) with alpha = 0.1 weights recent visits more, so it keeps fluctuating around the true value instead of settling exactly; the model-based method uses only observed transitions, so it gives no estimate for a state whose observed successor has no estimate, and it never uses the game rules.
 
 ### Q-learning and baseline evaluation
 
+Training: fresh `QLearner(epsilon, seed)` and fresh environment for each run; 50,000 games each; epsilon 0.2 and 0; alpha 0.1, gamma 1.0; random exploration between hit and stick; seeded random tie-breaking. Evaluation: 10,000 new games, greedy actions, no exploration, no updates, environment restarted with the evaluation seed for each policy. Evaluation seeds are paired with training seeds (11 ↔ 1011, 22 ↔ 1022, 33 ↔ 1033). If a Q-value tie or an unseen state occurred, the frozen policy sticks; this happened 0 times in all evaluations.
+
 | Training seed | Policy / epsilon | Evaluation seed | Wins | Losses | Draws | Cut-offs | Mean reward |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| 11 | Fixed baseline | 1011 | 2962 | 6462 | 576 | 0 | -0.3500 |
+| 11 | Q-learning, 0.2 | 1011 | 4244 | 4920 | 836 | 0 | -0.0676 |
+| 11 | Q-learning, 0 | 1011 | 4192 | 4856 | 952 | 0 | -0.0664 |
+| 22 | Fixed baseline | 1022 | 2935 | 6481 | 584 | 0 | -0.3546 |
+| 22 | Q-learning, 0.2 | 1022 | 4236 | 4897 | 867 | 0 | -0.0661 |
+| 22 | Q-learning, 0 | 1022 | 4142 | 4902 | 956 | 0 | -0.0760 |
+| 33 | Fixed baseline | 1033 | 2950 | 6496 | 554 | 0 | -0.3546 |
+| 33 | Q-learning, 0.2 | 1033 | 4074 | 5031 | 895 | 0 | -0.0957 |
+| 33 | Q-learning, 0 | 1033 | 4103 | 5000 | 897 | 0 | -0.0897 |
+
+All of these rows come from `outputs/evaluation/eval_results.csv`. That file also contains every policy evaluated on all three evaluation seeds (not only the paired ones), and `outputs/evaluation/eval_summary.csv` pools the three evaluation seeds per policy: win rate 0.411–0.421 for the six Q-learning policies and 0.295 for the baseline; mean reward -0.071 to -0.085 versus -0.353.
 
 ### Plots and learned policies
 
-Link training curves, Q-tables, hit/stick policy tables and state-action counts.
-Separate usable-ace and no-usable-ace results.
+- Training curves, mean reward per 1,000-game block (training only, so epsilon 0.2 includes random exploration moves): `outputs/plots/learning_curve_training.png`; numbers in `outputs/qlearning/learning_curve.csv`
+- Frozen-policy evaluation (greedy, 10,000 new games per evaluation seed): `outputs/plots/evaluation_results.png`
+- Q-values and state-action visit counts, one file per run: `outputs/qlearning/q_seed<seed>_eps<epsilon>.csv`
+- Greedy hit/stick tables, usable ace and no usable ace separately: `outputs/qlearning/greedy_seed<seed>_eps<epsilon>_ace.csv` and `..._noace.csv` (H = hit, S = stick, - = tie or state never seen)
+
+Training and evaluation are shown in separate figures because they measure different things: the training curve includes exploration and a policy that is still changing, the evaluation is a fixed greedy policy on new games.
 
 ### Explain your results
 
-Address prediction versus control, terminal updates, usable aces, exploration,
-coverage, variation across seeds and whether the learned policy improved.
-# HW7 --- Learn Blackjack Four Ways
+**Prediction versus control.** Model-based evaluation, Monte Carlo and TD(0) only *evaluate* the fixed hit-below-20 policy, they estimate V(s) and never change how the game is played. Q-learning *controls*: it estimates Q(s, a) for both actions and the greedy action in each state defines a new policy, which was then tested on new games.
 
-**CSS-4007 · Artificial Intelligence · Fall 2026**
+**Terminal updates.** At a terminal transition (the successor is END) the continuation value is 0: the TD target is the reward r, and the Q-learning target is r. At a nonterminal hit the reward is 0 and the target bootstraps from the successor value, or from the maximum Q-value of the successor. Monte Carlo uses the complete return of the finished game.
 
-**Student:** Mariam Gazizkyzy\
-**Repository:** `https://github.com/mariyamgazizkyzy-del/css4007-hw7` 
-replace with your public fork URL)\
-**Environment:** Gymnasium `Blackjack-v1`, `natural=False`, `sab=False`
+**Usable aces.** A usable ace can be counted as 11 or 1, so a hit cannot bust the hand as easily; the same player sum has different future behaviour with and without it. For that reason the flag is part of the state and the value tables and policy tables are reported separately for usable ace and no usable ace.
 
-> **Draft status:** Parts A and B below contain the hand calculations
-> based on the assignment's supplied histories. Parts C and D require
-> running the code in the student's own fork. Their results are
-> deliberately left as fields to complete; no simulated results,
-> dependency versions, or repository commits are invented.
+**Exploration and coverage.** Every one of the six Q-tables contains 280 observations (player sums 4–21 with no usable ace and 12–21 with a usable ace, against dealer cards 1–10), so every possible observation was reached, with epsilon 0.2 and with epsilon 0. In evaluation no decision needed the tie/unseen fallback. With epsilon 0, random tie-breaking among equal Q-values supplies the first variety, but an action that looks worse can stay under-sampled; with epsilon 0.2 both actions keep being tried.
 
-## AI-use declaration
+**Variation across seeds and epsilon.** Seeds change the results slightly: the paired mean rewards for epsilon 0.2 are -0.0676, -0.0661 and -0.0957, and for epsilon 0 they are -0.0664, -0.0760 and -0.0897. Neither epsilon setting is better in all three seeds: epsilon 0.2 is better for seed 22, epsilon 0 for seed 33 and the two are almost equal for seed 11. A single evaluation of 10,000 games has a standard error of about 0.01 in mean reward, so these differences are about the size of the noise. The last training block (1,000 games) is noisier still (standard error about 0.03), so single-block values are not compared.
 
-I used ChatGPT to help explain the assignment, check mathematical
-calculations, structure this report, and draft explanations. I am
-responsible for reviewing the calculations, implementing and running the
-programs, checking the outputs, and submitting my own work. The final
-declaration should be updated to match the actual tools and assistance
-used.
+**Did the learned policy improve on the baseline?** Yes, in all three seeds and for both epsilon settings. The paired mean reward rises from about -0.35 (baseline, win rate about 0.30) to between -0.066 and -0.096 (Q-learning, win rate about 0.41–0.42), an improvement of roughly 0.26–0.29 per game. The learned policies still have a negative mean reward, so they do not beat the dealer on average; they only lose much less than the baseline, which hits on 12–19 whatever the dealer shows.
 
-## Blackjack as an MDP
+**Limits.** The conclusions come from three training seeds, 50,000 training games each and 10,000 evaluation games per seed. The state-value comparison in D1 is for one fixed policy only.
 
-A decision state is the player's observation
-`(player_sum, dealer_showing, usable_ace)`. The action is `0 = stick` or
-`1 = hit`. A nonterminal hit has reward 0. At the end of a game the
-reward is +1 for a win, -1 for a loss, or 0 for a draw. A game
-terminates when the player sticks and the dealer completes its turn, or
-when the player busts. The usable-ace flag is needed because an ace
-currently counted as 11 may later be changed to 1; therefore the same
-total can have different future transitions depending on this flag. The
-dealer's hidden card is not part of the player's observation and must
-not be exposed to the learner.
+## Reproducibility and submission checklist
 
-Parameters: discount `gamma = 1.0`; TD/Q-learning rate `alpha = 0.1`;
-initial V and Q values are zero. The fixed policy for model-based
-evaluation, Monte Carlo and TD(0) is hit below 20 and stick at 20 or 21.
-
-# Part A --- States and actions
-
-## A1. Blackjack
-
-The restricted decision-observation table has 10 player sums (12--21),
-10 dealer up-card values (1--10), and 2 usable-ace values:
-
-`10 × 10 × 2 = 200` observation entries.
-
-There are two action labels (hit and stick), so the restricted Q-table
-has `200 × 2 = 400` state-action entries. These are counts for the
-stated restricted representation, not the entire environment:
-observations with player sums below 12 and the terminal marker are
-excluded. The full simulator also has hidden card information and
-turn/game status that are not all included in the player's observation.
-
-Two different card situations can produce `(18, 6, no usable ace)`: a
-player holding 10+8, or a player holding 5+6+7, while the dealer shows
-6. The dealer's hidden card must not be provided because the player
-cannot observe it; including it would leak hidden information and change
-the learning problem.
-
-## A2. Durak
-
-Before any cards are exposed, the number of unordered six-card hands is:
-
-`C(36,6) = 36! / (6! × 30!) = 1,947,792`.
-
-Order is ignored because a hand is a set of cards, not a sequence. A
-hand alone is not a complete game state.
-
-Given our six cards and one exposed trump card outside our hand, 29
-cards remain available for the opponent's six-card hand:
-
-`C(29,6) = 29! / (6! × 23!) = 475,020`
-
-This counts candidate opponent hands only. It does not count the
-remaining stock order or all other hidden state components.
-
-On an empty table, an attacker with six distinct cards has six legal
-one-card opening actions.
-
-For the defense example, hearts are trump and the attack is 10♣. From
-6♣, 9♣, A♣, 7♥, Q♥, 8♠, the legal defense cards are A♣, 7♥ and Q♥. The
-defender may also pick up. Thus there are `3 + 1 = 4` legal actions.
-
-A full simulator state needs both hands, attack/defense pairs on the
-table, trump card and suit, ordered stock, discarded cards, phase, and
-player to move. The player observes their own hand and public
-table/trump information, but not the opponent's hand or the order of the
-stock. The same visible table can therefore hide different states and
-produce different future outcomes. No single total for all reachable
-Durak states is asserted here.
-
-## A3. Tic-tac-toe
-
-Each of nine squares has three encodings (empty, X, O), so all board
-encodings number `3^9 = 19,683`. This is an upper bound on encodings,
-not the exact number of legally reachable positions: some encodings have
-impossible X/O counts, and some continue after a win even though play
-must stop at the first win.
-
-There are nine action labels (place a mark in one of nine squares). In
-the supplied board:
-
-    X O X
-    . O .
-    . . .
-
-There are two X marks and two O marks, so it is X's turn. The five legal
-placements are row 2 column 1, row 2 column 3, row 3 column 1, row 3
-column 2, and row 3 column 3. The board contents determine the player to
-move in a legal position because X starts and turns alternate.
-Multiplying every board encoding by two would not count legal states
-exactly: many boards are unreachable, and the turn is determined by the
-mark counts for legal boards.
-
-## A4. Nim
-
-The three piles are labeled and bounded by 2, 3 and 4 stones. The number
-of pile configurations is:
-
-`(2+1)(3+1)(4+1) = 3 × 4 × 5 = 60`.
-
-Including one of two players to move gives `60 × 2 = 120` encodings.
-This is an encoding count, not a claim that every encoding is reachable
-from the specified initial position and starting player.
-
-At `(2,3,4)`, actions are `(pile, stones removed)`: pile 1 remove 1 or
-2; pile 2 remove 1, 2 or 3; pile 3 remove 1, 2, 3 or 4. Total:
-`2+3+4=9`.
-
-At `(0,1,2)`, actions are `(2,1)`, `(3,1)`, `(3,2)`, for 3 legal
-actions. At `(0,0,0)`, the position is terminal and has 0 legal actions.
-"Choose a pile" is incomplete because the number of stones removed must
-also be specified. If piles were unlabeled, permutations of the same
-pile sizes would represent the same configuration, reducing the count.
-
-## A5. Comparison
-
-  ----------------------------------------------------------------------------------------------------------------
-  Game          Representation           Count formula Count type    Action                  Example Hidden
-                                                                     representation            legal information
-                                                                                             actions 
-  ------------- ---------------- --------------------- ------------- ------------------ ------------ -------------
-  Blackjack     Player sum,              `10×10×2=200` Restricted    Hit / stick            2 action Dealer hole
-                dealer up-card,                        observation                           labels; card
-                usable ace                             count                            legal choice 
-                                                                                          depends on 
-                                                                                               state 
-
-  Durak         Hands, table,      `C(36,6)=1,947,792` Partial       Play a card / pick   4 in given Opponent hand
-                trump, stock,             for one hand component     up / end attack         defense and stock
-                phase, turn                            count                                         order
-
-  Tic-tac-toe   Nine squares              `3^9=19,683` Upper bound   Place mark in a      5 in given None under
-                                                       on legal      square                    board perfect
-                                                       positions                                     observation
-
-  Nim           Three labeled            `3×4×5×2=120` Encoding      `(pile, amount)`           9 at None under
-                pile sizes and                         count                               `(2,3,4)` perfect
-                player to move                                                                       observation
-  ----------------------------------------------------------------------------------------------------------------
-
-Durak can require an especially large Q-table because the state contains
-combinations of cards, hidden hands, stock order, table layout and
-phase. Blackjack also grows when the observation range is expanded. The
-number of action labels is not necessarily the number of legal actions
-in a particular state: for example, a Nim pile cannot lose more stones
-than it currently contains.
-
-# Part B --- Paper calculations for the supplied histories
-
-States: A=(18,6,no usable ace), B=(20,6,no usable ace), C=(17,6,usable
-ace), D=(17,6,no usable ace), E=(21,6,no usable ace). END is terminal
-and has continuation value 0.
-
-## B1. Model-based learning
-
-For observed transitions:
-
-`P(s'|s,a) = count(s,a,s') / count(s,a)`\
-`R(s,a,s') = mean reward observed for that triple`
-
-  --------------------------------------------------------------------------
-  State-action   Next state            Count       Estimated     Mean reward
-                                                 probability 
-  -------------- ----------- --------------- --------------- ---------------
-  A, hit         B                         2             2/3               0
-
-  A, hit         END                       1             1/3              -1
-
-  B, stick       END                       2               1               0
-
-  C, hit         D                         1               1               0
-
-  D, hit         E                         1               1               0
-
-  E, stick       END                       1               1               0
-  --------------------------------------------------------------------------
-
-For B, stick, both observed terminal rewards are included:
-`(+1 + -1)/2 = 0`.
-
-Synchronous policy evaluation uses only the previous sweep:
-
-`V_(k+1)(s) = Σ_s' P(s'|s,π(s)) [R(s,π(s),s') + gamma V_k(s')]`.
-
-Starting from all zeros: - `V1(A) = (2/3)(0) + (1/3)(-1) = -1/3`. -
-`V1(B) = (1/2)(+1) + (1/2)(-1) = 0`. - `V1(C)=V1(D)=V1(E)=0`. -
-`V2(A) = (2/3)(0 + V1(B)) + (1/3)(-1 + 0) = -1/3`. -
-`V2(B)=V2(C)=V2(D)=V2(E)=0`.
-
-  State     V0              V1              V2
-  ------- ---- --------------- ---------------
-  A          0   -0.3333333333   -0.3333333333
-  B          0               0               0
-  C          0               0               0
-  D          0               0               0
-  E          0               0               0
-
-All other state-action pairs are unobserved. Empirical probabilities
-from these few constructed histories need not equal the true
-probabilities of Blackjack.
-
-## B2. Direct evaluation (every-visit Monte Carlo)
-
-Returns from each nonterminal visit: - Game 1: A gets +1; B gets +1. -
-Game 2: A gets -1. - Game 3: C, D and E each get 0. - Game 4: A gets -1;
-B gets -1.
-
-`V(s) = sum of returns / number of visits`.
-
-  State   Returns        Visits            Mean return
-  ------- ------------ -------- ----------------------
-  A       +1, -1, -1          3   -1/3 = -0.3333333333
-  B       +1, -1              2                      0
-  C       0                   1                      0
-  D       0                   1                      0
-  E       0                   1                      0
-
-## B3. TD(0)
-
-Update rule: `V(s) ← V(s) + 0.1 × [r + V(s') - V(s)]`, with `V(END)=0`.
-Updates are immediate and values carry between games.
-
-First pass, games 1--4:
-
-  Game/step   State     Old V    r   Successor V   Target   New V
-  ----------- ------- ------- ---- ------------- -------- -------
-  1/1         A             0    0             0        0       0
-  1/2         B             0   +1             0        1     0.1
-  2/1         A             0   -1             0       -1    -0.1
-  3/1         C             0    0             0        0       0
-  3/2         D             0    0             0        0       0
-  3/3         E             0    0             0        0       0
-  4/1         A          -0.1    0           0.1      0.1   -0.08
-  4/2         B           0.1   -1             0       -1   -0.01
-
-Second pass, without resetting:
-
-  Game/step   State       Old V    r   Successor V   Target      New V
-  ----------- ------- --------- ---- ------------- -------- ----------
-  1/1         A           -0.08    0         -0.01    -0.01     -0.073
-  1/2         B           -0.01   +1             0        1      0.091
-  2/1         A          -0.073   -1             0       -1    -0.1657
-  3/1         C               0    0             0        0          0
-  3/2         D               0    0             0        0          0
-  3/3         E               0    0             0        0          0
-  4/1         A         -0.1657    0         0.091    0.091   -0.14003
-  4/2         B           0.091   -1             0       -1    -0.0181
-
-Final TD values: A=-0.14003, B=-0.0181, C=D=E=0.
-
-## B4. Q-learning
-
-Update rule: `Q(s,a) ← Q(s,a) + 0.1 × [r + max_a' Q(s',a') - Q(s,a)]`.
-Both actions are included in the maximum, including unobserved actions
-initialized to zero. Terminal continuation is zero.
-
-First pass: \| Game/step \| State-action \| Old Q \| r \| Max next Q \|
-Target \| New Q \| \|---\|---\|---:\|---:\|---:\|---:\|---:\| \| 1/1 \|
-A, hit \| 0 \| 0 \| 0 \| 0 \| 0 \| \| 1/2 \| B, stick \| 0 \| +1 \| 0 \|
-1 \| 0.1 \| \| 2/1 \| A, hit \| 0 \| -1 \| 0 \| -1 \| -0.1 \| \| 3/1 \|
-C, hit \| 0 \| 0 \| 0 \| 0 \| 0 \| \| 3/2 \| D, hit \| 0 \| 0 \| 0 \| 0
-\| 0 \| \| 3/3 \| E, stick \| 0 \| 0 \| 0 \| 0 \| 0 \| \| 4/1 \| A, hit
-\| -0.1 \| 0 \| 0.1 \| 0.1 \| -0.08 \| \| 4/2 \| B, stick \| 0.1 \| -1
-\| 0 \| -1 \| -0.01 \|
-
-Second pass: \| Game/step \| State-action \| Old Q \| r \| Max next Q \|
-Target \| New Q \| \|---\|---\|---:\|---:\|---:\|---:\|---:\| \| 1/1 \|
-A, hit \| -0.08 \| 0 \| 0 \| 0 \| -0.072 \| \| 1/2 \| B, stick \| -0.01
-\| +1 \| 0 \| 1 \| 0.091 \| \| 2/1 \| A, hit \| -0.072 \| -1 \| 0 \| -1
-\| -0.1648 \| \| 3/1 \| C, hit \| 0 \| 0 \| 0 \| 0 \| 0 \| \| 3/2 \| D,
-hit \| 0 \| 0 \| 0 \| 0 \| 0 \| \| 3/3 \| E, stick \| 0 \| 0 \| 0 \| 0
-\| 0 \| \| 4/1 \| A, hit \| -0.1648 \| 0 \| 0.091 \| 0.091 \| -0.13922
-\| \| 4/2 \| B, stick \| 0.091 \| -1 \| 0 \| -1 \| -0.0181 \|
-
-Final Q-table (unobserved actions retain their initialized zero): \|
-State \| Q(hit) \| Q(stick) \| Greedy action \| \|---\|---:\|---:\|---\|
-\| A \| -0.13922 \| 0 \| Stick \| \| B \| 0 \| -0.0181 \| Hit \| \| C \|
-0 \| 0 \| Tie \| \| D \| 0 \| 0 \| Tie \| \| E \| 0 \| 0 \| Tie \|
-
-An untried action's zero estimate is not evidence that it is good; it
-only indicates that no update has been made for that action. These four
-methods need not agree because they estimate different quantities, use
-different update rules, and process the limited histories differently.
-Replaying fixed histories checks update calculations, not exploration or
-policy quality.
-
-# Part C --- Exact reproduction in code
-
-**Status: complete only after the fixed-history program has been run and
-its outputs checked. Do not fill this section with guessed results.**
-
--   Reproduction command: `[ADD THE ACTUAL COMMAND]`
--   Input files: `data/paper-games.csv`, `data/states.csv`
--   Program file(s): `[ADD FILE NAMES]`
--   Output directory: `outputs/paper-replay/`
--   Python version: `[RECORD python --version]`
--   Dependency versions:
-    `[RECORD installed versions, including Gymnasium]`
-
-Attach or summarize the program output for: 1. Transition counts,
-probabilities and mean rewards. 2. Both synchronous model-based sweeps.
-3. Every-visit Monte Carlo returns, visit counts and averages. 4. Every
-TD(0) update in both passes. 5. Every Q-learning update in both passes.
-6. Paper-versus-program comparison, including full-precision
-differences.
-
-  -------------------------------------------------------------------------------------------
-  Method       State /        Sweep/pass/update      Paper result       Program    Difference
-               state-action                                              result 
-  ------------ -------------- ------------------- --------------- ------------- -------------
-  Model        A              V1                    -0.3333333333       \[RUN\]       \[RUN\]
-
-  Model        A              V2                    -0.3333333333       \[RUN\]       \[RUN\]
-
-  Monte Carlo  A              One pass              -0.3333333333       \[RUN\]       \[RUN\]
-
-  TD(0)        A              Pass 2 final               -0.14003       \[RUN\]       \[RUN\]
-
-  TD(0)        B              Pass 2 final                -0.0181       \[RUN\]       \[RUN\]
-
-  Q-learning   A, hit         Pass 2 final               -0.13922       \[RUN\]       \[RUN\]
-
-  Q-learning   B, stick       Pass 2 final                -0.0181       \[RUN\]       \[RUN\]
-  -------------------------------------------------------------------------------------------
-
-Explain any discrepancies here:
-`[COMPARE ACTUAL OUTPUT WITH PAPER WORK; KEEP ORIGINAL CALCULATIONS VISIBLE AND MARK CORRECTIONS.]`
-
-# Part D --- Learning from simulated Blackjack games
-
-**Status: pending actual Gymnasium experiments. All fields below must be
-populated from saved outputs.**
-
-## D1. Fixed-policy evaluation
-
-Environment: `Blackjack-v1`, `natural=False`, `sab=False`. Policy: hit
-below 20, stick at 20 or 21. For each seed 11, 22 and 33, collect 10,000
-games. The first reset is seeded; later resets continue the same
-environment random sequence. Log each transition and map terminal
-successors to END for the learners.
-
-  -------------------------------------------------------------------------
-             Seed Games collected        Cut-offs Model         Notes
-                                                  convergence / 
-                                                  sweeps        
-  --------------- --------------- --------------- ------------- -----------
-               11          10,000         \[RUN\] \[RUN\]       \[RUN\]
-
-               22          10,000         \[RUN\] \[RUN\]       \[RUN\]
-
-               33          10,000         \[RUN\] \[RUN\]       \[RUN\]
-  -------------------------------------------------------------------------
-
-For each seed, feed the same saved game sequence to model-based
-evaluation, every-visit Monte Carlo and TD(0). Save estimates at 100,
-1,000 and 10,000 games. Model evaluation uses tolerance `1e-6` and at
-most 10,000 synchronous sweeps. Unobserved state-action pairs must
-remain marked unobserved; do not substitute hidden game rules or present
-initialization zeros as empirical estimates.
-
-Insert the generated state-value tables here, separately for usable ace
-and no usable ace. Include visit counts and mark missing/unobserved
-estimates explicitly: `[LINK OR TABLE FROM outputs/]`.
-
-Discuss several frequently visited and rarely visited states using
-actual counts and estimates: `[ADD ACTUAL COMPARISONS]`. Explain whether
-estimates stabilize as the number of games increases and identify
-model-based values affected by missing successor information:
-`[ADD FROM OUTPUTS]`.
-
-## D2. Q-learning
-
-Train a fresh Q-table for each seed 11, 22 and 33 for 50,000 games. Use
-`alpha=0.1`, `gamma=1.0`, epsilon 0.2, uniform random exploration
-between hit and stick, and seeded random tie-breaking. Repeat with
-epsilon 0. Save Q-values, state-action visit counts and greedy policies
-separately for usable-ace and no-usable-ace observations.
-
-    Training seed   Epsilon    Games Output file(s)
-  --------------- --------- -------- ----------------
-               11       0.2   50,000 \[PATH\]
-               22       0.2   50,000 \[PATH\]
-               33       0.2   50,000 \[PATH\]
-               11         0   50,000 \[PATH\]
-               22         0   50,000 \[PATH\]
-               33         0   50,000 \[PATH\]
-
-## D3. Frozen-policy evaluation
-
-Evaluate each frozen Q-learning policy and the fixed-policy baseline for
-10,000 new games. Use evaluation seeds 1011, 1022 and 1033, paired with
-training seeds. Restart the evaluation environment with the same seed
-for each policy. Use greedy actions, no exploration and no learning
-updates.
-
-  -------------------------------------------------------------------------------------------------
-    Training   Epsilon   Evaluation Policy            Wins    Losses     Draws   Cut-offs      Mean
-        seed                   seed                                                          reward
-  ---------- --------- ------------ ------------ --------- --------- --------- ---------- ---------
-          11       ---         1011 Fixed          \[RUN\]   \[RUN\]   \[RUN\]    \[RUN\]   \[RUN\]
-                                    baseline                                              
-
-          11       0.2         1011 Q-learning     \[RUN\]   \[RUN\]   \[RUN\]    \[RUN\]   \[RUN\]
-
-          11         0         1011 Q-learning     \[RUN\]   \[RUN\]   \[RUN\]    \[RUN\]   \[RUN\]
-
-          22       ---         1022 Fixed          \[RUN\]   \[RUN\]   \[RUN\]    \[RUN\]   \[RUN\]
-                                    baseline                                              
-
-          22       0.2         1022 Q-learning     \[RUN\]   \[RUN\]   \[RUN\]    \[RUN\]   \[RUN\]
-
-          22         0         1022 Q-learning     \[RUN\]   \[RUN\]   \[RUN\]    \[RUN\]   \[RUN\]
-
-          33       ---         1033 Fixed          \[RUN\]   \[RUN\]   \[RUN\]    \[RUN\]   \[RUN\]
-                                    baseline                                              
-
-          33       0.2         1033 Q-learning     \[RUN\]   \[RUN\]   \[RUN\]    \[RUN\]   \[RUN\]
-
-          33         0         1033 Q-learning     \[RUN\]   \[RUN\]   \[RUN\]    \[RUN\]   \[RUN\]
-  -------------------------------------------------------------------------------------------------
-
-Plot training mean reward in blocks of 1,000 games. Clearly distinguish
-training results from frozen-policy evaluation results. Report cut-offs
-separately; they are not wins, losses, draws, or complete Monte Carlo
-returns. Safety limit: 100 player actions per game.
-
-**Did Q-learning improve on the baseline?**
-`[ANSWER ONLY AFTER COMPARING ALL THREE SEEDS AND BOTH EPSILON SETTINGS; INCLUDE NEGATIVE RESULTS.]`
-
-## D4. Discussion
-
--   Model-based learning estimates a transition/reward model and
-    evaluates a supplied policy.
--   Monte Carlo estimates state values from complete game returns.
--   TD(0) estimates state values using one-step bootstrapped updates.
--   Q-learning estimates action values and can derive a greedy action
-    policy.
--   Terminal transitions use zero continuation value. Nonterminal
-    transitions bootstrap from the successor value or maximum successor
-    Q-value.
--   The usable-ace flag distinguishes observations with different future
-    card-handling behavior.
--   Exploration can expose the learner to both actions; with epsilon 0,
-    unvisited actions may remain poorly estimated. Limited visits make
-    estimates noisy, especially for rare observations.
-
-Add conclusions based on the actual experiment:
-`[DISCUSS OBSERVED VISIT FREQUENCIES, CONVERGENCE, SEED VARIATION, EPSILON COMPARISON, AND BASELINE COMPARISON.]`
-
-# Reproducibility and submission checklist
-
--   [ ] Public fork URL inserted above; no pull request to starter.
--   [ ] Original paper calculations photographed/scanned and committed
-    before the first learning implementation.
--   [ ] Corrections are marked without deleting the original work.
--   [ ] Part C program loads the supplied CSV histories exactly; no
-    replacement histories.
--   [ ] Part C output is saved in `outputs/paper-replay/`.
--   [ ] Part D game logs, summaries, visit counts, value/Q tables,
-    policies and plots are saved under `outputs/`.
--   [ ] Python, Gymnasium and other dependency versions recorded.
--   [ ] Exact reproduction and experiment commands added.
--   [ ] `.env`, API keys and other secrets are not committed.
--   [ ] All `[RUN]`, `[PATH]` and `[ADD ...]` placeholders are replaced
-    using actual results.
--   [ ] AI-use declaration accurately describes the assistance used.
+- [x] Public fork URL inserted above
+- [ ] Original paper calculations committed before the first learning implementation (check `git log`: `a8f26d4`)
+- [ ] Corrections marked without deleting the original work (check the scans)
+- [x] Part C program loads the supplied CSV histories (`data/paper-games.csv`)
+- [x] Part C output saved in `outputs/paper-replay/`
+- [x] Part D game logs, summaries, visit counts, value/Q tables, policies and plots saved under `outputs/`
+- [x] Python, Gymnasium and other dependency versions recorded
+- [x] Exact reproduction and experiment commands added
+- [x] `.env`, API keys and other secrets are not committed
+- [ ] All `FILL` placeholders in this file replaced using actual results
+- [ ] AI-use declaration accurately describes the assistance used
