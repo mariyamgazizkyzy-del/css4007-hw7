@@ -1,167 +1,184 @@
-# HW7 submission — Blackjack
-
-Public fork: https://github.com/mariyamgazizkyzy-del/css4007-hw7
+# HW6 submission
 
 ## AI-use declaration
 
-Claude (Anthropic) was used for: writing `d2_qlearn.py`, `d3_eval.py` and `plots.py` from my specification; writing the PowerShell commands used to copy and run the scripts; reviewing the code and the printed results; and helping to word the explanations in Part D. I ran all programs myself on my machine and the numbers below are copied from the saved outputs in `outputs/`.
-
-**FILL IN / CHECK:** state here which tools helped with Parts A–C and with `common.py`, `learners.py`, `d1_collect.py`, `d1_estimate.py`, `replay.py`. This declaration must describe the help you really used.
+I used **Claude (Anthropic)** in a chat session for: explaining the assignment, writing the Python code
+(`floors.py`, `solver.py`, `part_a_check.py`, `part_b.py`, `part_c.py`, `checks.py`), running the experiments,
+and drafting the explanations in this file. The paper calculations in Part A were checked against
+`outputs/part_a_check.txt` (produced by code). I reviewed the results and am responsible for the submission.
 
 ## Setup and reproduction
 
-Versions (from `pip install` output): Python 3.14 (Windows, 64-bit), gymnasium 1.4.0, numpy 2.5.3, matplotlib 3.11.2. Environment: `Blackjack-v1`, `natural=False`, `sab=False`. alpha = 0.1, gamma = 1.0, all tables start at zero.
+Python 3.12.3, `gymnasium==1.4.0`, `numpy==2.5.4` (see `requirements.txt`, `outputs/part_b_versions.txt`).
 
-Installation:
-
-```
-pip install gymnasium numpy matplotlib
-```
-
-Commands, in this order, from the repository folder:
-
-```
-python replay.py            # Part C, output saved in outputs/paper-replay/
-python d1_collect.py        # Part D1: 10,000 games for seeds 11, 22, 33
-python d1_estimate.py       # Part D1: estimates at 100, 1,000, 10,000 games
-python d1_tables.py         # Part D1: readable tables and summary from the saved csv files
-python d2_qlearn.py         # Part D2: 50,000 training games, 3 seeds x epsilon 0.2 and 0
-python d3_eval.py           # Part D3: frozen-policy evaluation, 10,000 new games
-python plots.py             # training curves and evaluation plot
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python part_a_check.py   # Part A numbers for checking the paper work -> outputs/part_a_check.txt
+python part_b.py         # Part B -> outputs/part_b_*.csv/md/txt
+python checks.py         # rule checks -> outputs/rule_checks.txt
+python part_c.py         # Part C -> outputs/part_c_*.csv/md/txt
 ```
 
-No secrets or `.env` files are used.
+Floor rules are in `data/maps.json` and are read by `floors.py`; `solver.py` only calls
+`GridWorld.outcomes()`, so a new floor type needs only a new entry in `maps.json` (this is how `D` and `W` were added).
 
-## Part A — Count states and actions
+## Part A — Paper calculations
 
-Paper answers and comparison table (Blackjack, Durak, tic-tac-toe, Nim): see `scans/`.
+**Scan/photo: `part_a/paper_calculations.jpg` — **Scan/photo:** [page 1](part_a/paper_calculations.jpg), [page 2](part_a/paper_calculations_2.jpg) (committed after the code; see git history)**
+The numbers below are the results the paper work must match (they are verified in `outputs/part_a_check.txt`).
 
-The paper answers for Part A are in the scans in `scans/` (shown and explained in person).
+**1. Model.** States: the nonterminal, non-wall tiles — (1,1) (1,2) (1,3) (2,1) (2,3) (3,1) (3,2) (3,3) (3,4);
+G and H are terminal (value 0), the wall is not a state. Actions: up, right, down, left. Transitions: deterministic on
+`S`, `.`, `M`; on `I` the chosen direction has probability 0.8 and each perpendicular direction 0.1; moves into a wall
+or outside the map leave the agent in place. Reward: the reward of the tile where the move ends
+(-1 floor, -3 mud, -1 ice, +10 goal, -10 hole). The agent maximizes the expected discounted sum of rewards with gamma = 0.9.
 
-## Part B — Paper calculations
+**2. V1** (V0 = 0, so V1(s) = best expected immediate reward):
 
-Scans of the original paper calculations are in `scans/` (committed in `a8f26d4`, "Paper calculations scan (original, before learning code)", before the learning code was written).
+```text
+ -1    -1    10     G
+ -1     #    -1     H
+ -1    -1    -1    -1
+```
 
-The paper calculations for all four methods are in the scans in `scans/` (shown and explained in person).
+(1,3) = 10 because "right" enters G for +10. At (1,2) mud: staying costs -3 but moving right/left costs -1, so V1 = -1.
+At ice (2,3): "left" gives 0.8*(-1) [wall, stay] + 0.1*(-1) + 0.1*(-1) = -1, which beats "up" (-1.9, because of the 10% hole slip).
 
-## Part C — Reproduce the calculations
+**3. V2 using only V1** (each Q = sum of p*(r + 0.9*V1(s'))):
 
-Replay output: `outputs/paper-replay/replay_output.txt` (from `python replay.py`, which loads `data/paper-games.csv`).
+(1,2) mud: up = -3 + 0.9(-1) = -3.9 (blocked, stays on M); right = -1 + 0.9(10) = **8.0**; down = -3.9 (wall); left = -1 + 0.9(-1) = -1.9. V2 = **8.0**.
 
-The "Program result" column is taken from that output. The paper results are in the scans in `scans/`; they are compared with the program results in person (see the last three columns).
+(1,3): up = -1 + 0.9(10) = 8.0 (blocked, stays); right = 10 + 0.9(0) = **10.0**; down = -1 + 0.9(-1) = -1.9; left = -3 + 0.9(-1) = -3.9 (enters mud). V2 = **10.0**.
 
-| Method | State / action | Sweep / pass / update | Paper result | Program result | Difference | Explanation |
-| --- | --- | --- | --- | --- | --- | --- |
-| Model-based | A | V1 | see `scans/` | -0.333333 | compared in person | explained in person |
-| Model-based | A | V2 | see `scans/` | -0.333333 | compared in person | explained in person |
-| Model-based | B, C, D, E | V1 and V2 | see `scans/` | 0.0 each | compared in person | explained in person |
-| Monte Carlo | A | every-visit mean (3 returns: 1, -1, -1) | see `scans/` | -0.333333 | compared in person | explained in person |
-| Monte Carlo | B | every-visit mean (returns 1, -1) | see `scans/` | 0.0 | compared in person | explained in person |
-| Monte Carlo | C, D, E | every-visit mean (1 return each) | see `scans/` | 0.0 each | compared in person | explained in person |
-| TD(0) | A | final value after 2 passes | see `scans/` | -0.140030 | compared in person | explained in person |
-| TD(0) | B | final value after 2 passes | see `scans/` | -0.018100 | compared in person | explained in person |
-| TD(0) | C, D, E | final value after 2 passes | see `scans/` | 0.0 each | compared in person | explained in person |
-| Q-learning | (A, stick) / (A, hit) | final Q | see `scans/` | 0.000000 / -0.139220 | compared in person | explained in person |
-| Q-learning | (B, stick) / (B, hit) | final Q | see `scans/` | -0.018100 / 0.000000 | compared in person | explained in person |
-| Q-learning | C, D, E | final Q | see `scans/` | 0.0 for both actions (greedy = tie) | compared in person | explained in person |
+(2,3) ice:
+- up = 0.8(-1 + 0.9·10) + 0.1(-1 + 0.9·(-1)) + 0.1(-10 + 0) = 6.4 - 0.19 - 1.0 = **5.21**
+- right = 0.8(-10) + 0.1(-1 + 0.9·10) + 0.1(-1 + 0.9·(-1)) = -8 + 0.8 - 0.19 = -7.39
+- down = 0.8(-1 + 0.9·(-1)) + 0.1(-1 + 0.9·(-1)) + 0.1(-10) = -1.52 - 0.19 - 1.0 = -2.71
+- left = 0.8(-1 + 0.9·(-1)) + 0.1(-1 + 0.9·10) + 0.1(-1 + 0.9·(-1)) = -1.52 + 0.8 - 0.19 = -0.91
 
-Every individual TD(0) and Q-learning update (pass 1 and 2, games 1–4) is printed in `outputs/paper-replay/replay_output.txt`.
+V2 = **5.21**.
 
-## Part D — Simulated games
+**4. Arrows after two rounds:** (1,2) → right; (1,3) → right; (2,3) → up. No ties at these three positions.
+Two rounds do not prove the final optimal policy because V2 is only a 2-step lookahead estimate: values keep changing
+until convergence (the solver needed 12 iterations), and an action that looks best with V1 can change when later values
+propagate (for example, values at (2,3) change from 5.21 to 5.82). Only convergence of V (and a greedy policy from it) gives the optimal policy.
 
-### Fixed-policy value estimates
+## Part B — FrozenLake
 
-Policy: hit below 20, stick at 20 or 21. For seeds 11, 22 and 33 the same 10,000 saved games, in the same order, were fed to model-based evaluation, every-visit Monte Carlo and TD(0). Cut-off games (100 actions without ending) would be excluded from all learners; there were none.
+### Fixed policy, written before the experiments
 
-| Seed | Games collected | Transitions | Cut-offs | Model converged (sweeps at 100 / 1,000 / 10,000 games) |
-| --- | --- | --- | --- | --- |
-| 11 | 10,000 | 17,958 | 0 | yes (6 / 12 / 11) |
-| 22 | 10,000 | 18,036 | 0 | yes (6 / 10 / 11) |
-| 33 | 10,000 | 17,912 | 0 | yes (5 / 11 / 11) |
+State numbering is 4·row + col. Gymnasium actions: 0 left, 1 down, 2 right, 3 up.
 
-Model evaluation used tolerance 1e-6 and at most 10,000 sweeps. A missing estimate is an empty cell in the csv files (never a filled-in zero).
+| State | 0 | 1 | 2 | 3 | 4 | 6 | 8 | 9 | 10 | 13 | 14 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Action | right | right | down | left | left | down | right | right | down | right | right |
 
-Files:
-- Shared game logs: `outputs/fixed_policy_logs/games_seed11.csv`, `games_seed22.csv`, `games_seed33.csv`
-- Checkpoint value tables with visit counts: `outputs/fixed_policy_estimates/seed<seed>_games<100|1000|10000>.csv`
-- Model convergence: `outputs/fixed_policy_estimates/model_based_convergence.csv`
-- Readable value tables after 10,000 games, usable ace and no usable ace separately: `outputs/fixed_policy_estimates/tables_seed<seed>_ace.md` and `tables_seed<seed>_noace.md`
-- Counts of missing estimates, differences between methods, most and least visited states: `outputs/fixed_policy_estimates/d1_summary.md` (made by `d1_tables.py`)
+Reasoning: the safe route on the map is 0 → 1 → 2 → 6 → 10 → 14 → 15 (right, right, down, down, down, right), which
+avoids all holes (5, 7, 11, 12) when moves are deterministic. The other states (3, 4, 8, 9, 13) are fallback moves that
+lead back toward this route or toward the goal. The policy was not changed after seeing results.
 
-**Coverage and missing estimates.** The number of states that had been visited (and therefore have an estimate) grew with the number of games: 96 / 116 / 118 states after 100 games (seeds 11 / 22 / 33), 243 / 245 / 247 after 1,000 games, and all 280 observations (player sums 4–21 without a usable ace, 12–21 with a usable ace, dealer 1–10) after 10,000 games for every seed. States not yet visited are simply not in the checkpoint files; they are not filled with zeros. Among the visited states, no estimate was missing for any method at any checkpoint (0 missing for model-based, Monte Carlo and TD(0), see `d1_summary.md`). So no model-based value was affected by missing successor information in these runs: every nonterminal successor in a complete game is itself a decision state later in the same game, so it is visited and has counts of its own.
+### Results
 
-**Frequently visited states.** The most visited states are those with a high player sum against a dealer 10, because the policy sticks at 20/21 and the dealer card 10 is the most likely card.
-- Seed 11, state (20, 10, no ace), 606 visits: model-based +0.416, Monte Carlo +0.416, TD(0) +0.439. Model-based and Monte Carlo are identical at all three checkpoints (for example +0.333 / +0.467 / +0.416) because sticking at 20 ends the game immediately, so the model's mean reward and the mean return are the same number. TD(0) is close here but not identical.
-- Seed 11, state (19, 10, no ace), 447 visits: model-based -0.729, Monte Carlo -0.736, TD(0) -0.723. All three methods agree within about 0.013.
-- Seed 22, state (20, 10, no ace), 633 visits: model-based and Monte Carlo +0.417, but TD(0) only +0.094 (it was +0.285 after 1,000 games). With alpha = 0.1, TD(0) weights roughly the last ten visits most, so even a state with hundreds of visits keeps fluctuating around the true value.
-
-**Rarely visited states.** For states with only one to four visits the three methods disagree a lot.
-- Seed 11, (4, 9, no ace), 1 visit: Monte Carlo +1.000, model-based -0.488, TD(0) 0.000. Monte Carlo with a single visit is just the outcome of that one game.
-- Seed 11, (4, 5, no ace), 2 visits: Monte Carlo -1.000, model-based -0.554, TD(0) -0.032. Seed 11, (12, 8, usable ace), 1 visit: Monte Carlo -1.000, model-based -0.114, TD(0) -0.007.
-- Seed 22, (12, 3, usable ace), 2 visits: Monte Carlo -0.500, model-based +0.180, TD(0) -0.026. Seed 33, (12, 4, usable ace), 4 visits: Monte Carlo 0.000, model-based -0.574, TD(0) -0.104.
-
-Monte Carlo gives extreme, noisy values (-1, 0 or +1 from one or two games). TD(0) stays close to its initial value 0 because one visit moves the value only 10% of the way toward the target, so it is biased toward the initialisation in rare states. The model-based values are the most stable here: they use the observed one-step transitions and rewards of the rare state but take the values of its successors from states that were visited much more often, and they fall in the same range (about -0.5 to -0.7) as the frequent neighbouring states.
-
-**Do the estimates stabilise?** Yes, but not monotonically in every measure. The mean absolute difference between methods over all visited states was, for seeds 11 / 22 / 33:
-- model-based vs TD(0): 0.622 / 0.747 / 0.774 after 100 games, 0.327 / 0.407 / 0.405 after 1,000 games, 0.126 / 0.128 / 0.119 after 10,000 games;
-- Monte Carlo vs TD(0): 0.712 / 0.780 / 0.828, then 0.420 / 0.489 / 0.473, then 0.165 / 0.177 / 0.160;
-- model-based vs Monte Carlo: 0.180 / 0.051 / 0.103, then 0.267 / 0.247 / 0.255, then 0.103 / 0.111 / 0.110. This one first increases because after 100 games most visited states have only one or two visits, where both methods mostly reproduce the same single outcomes, and after 1,000 games many newly visited rare states enter the average.
-
-The remaining difference of about 0.10–0.18 after 10,000 games is dominated by rare states, which still have very few visits. The three seeds give the same picture (compare the frequent state (20, 10, no ace): Monte Carlo +0.416 / +0.417 / +0.455), while TD(0) differs most between seeds (+0.439 / +0.094 / +0.493).
-
-### Q-learning and baseline evaluation
-
-Training: fresh `QLearner(epsilon, seed)` and fresh environment for each run; 50,000 games each; epsilon 0.2 and 0; alpha 0.1, gamma 1.0; random exploration between hit and stick; seeded random tie-breaking. Evaluation: 10,000 new games, greedy actions, no exploration, no updates, environment restarted with the evaluation seed for each policy. Evaluation seeds are paired with training seeds (11 ↔ 1011, 22 ↔ 1022, 33 ↔ 1033). If a Q-value tie or an unseen state occurred, the frozen policy sticks; this happened 0 times in all evaluations.
-
-| Training seed | Policy / epsilon | Evaluation seed | Wins | Losses | Draws | Cut-offs | Mean reward |
+| Slippery? | Policy | Batch seed | Goals /50 | Holes /50 | Time limits /50 | Success % | Mean steps |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 11 | Fixed baseline | 1011 | 2962 | 6462 | 576 | 0 | -0.3500 |
-| 11 | Q-learning, 0.2 | 1011 | 4244 | 4920 | 836 | 0 | -0.0676 |
-| 11 | Q-learning, 0 | 1011 | 4192 | 4856 | 952 | 0 | -0.0664 |
-| 22 | Fixed baseline | 1022 | 2935 | 6481 | 584 | 0 | -0.3546 |
-| 22 | Q-learning, 0.2 | 1022 | 4236 | 4897 | 867 | 0 | -0.0661 |
-| 22 | Q-learning, 0 | 1022 | 4142 | 4902 | 956 | 0 | -0.0760 |
-| 33 | Fixed baseline | 1033 | 2950 | 6496 | 554 | 0 | -0.3546 |
-| 33 | Q-learning, 0.2 | 1033 | 4074 | 5031 | 895 | 0 | -0.0957 |
-| 33 | Q-learning, 0 | 1033 | 4103 | 5000 | 897 | 0 | -0.0897 |
+| no | random | 11 | 0 | 50 | 0 | 0 | 7.98 |
+| no | random | 22 | 0 | 50 | 0 | 0 | 6.42 |
+| no | random | 33 | 1 | 49 | 0 | 2 | 6.66 |
+| no | fixed | 11 | 50 | 0 | 0 | 100 | 6.00 |
+| no | fixed | 22 | 50 | 0 | 0 | 100 | 6.00 |
+| no | fixed | 33 | 50 | 0 | 0 | 100 | 6.00 |
+| yes | random | 11 | 0 | 50 | 0 | 0 | 8.30 |
+| yes | random | 22 | 2 | 48 | 0 | 4 | 7.76 |
+| yes | random | 33 | 0 | 50 | 0 | 0 | 6.74 |
+| yes | fixed | 11 | 0 | 50 | 0 | 0 | 6.68 |
+| yes | fixed | 22 | 3 | 47 | 0 | 6 | 6.94 |
+| yes | fixed | 33 | 4 | 46 | 0 | 8 | 7.60 |
 
-All of these rows come from `outputs/evaluation/eval_results.csv`. That file also contains every policy evaluated on all three evaluation seeds (not only the paired ones), and `outputs/evaluation/eval_summary.csv` pools the three evaluation seeds per policy: win rate 0.411–0.421 for the six Q-learning policies and 0.295 for the baseline; mean reward -0.071 to -0.085 versus -0.353.
+Episode rows: `outputs/part_b_episodes.csv`; example traces: `outputs/part_b_traces.txt` (one trace for each (condition, policy, outcome) that occurred).
+Time limits never occurred: every episode ended in a goal or a hole before 100 steps.
 
-### Plots and learned policies
+**Slipping.** Without slipping the fixed policy reaches the goal in all 150 episodes in exactly 6 steps, while random
+actions reach it in only 1 of 150. With slipping, the intended move happens only with probability 1/3 (the other two
+directions are perpendicular), so the same fixed policy drops to 0-8% success (0/50, 3/50, 4/50). Slipping pushes the agent
+off the route and often into a hole, and my route passes next to holes, so it is fragile. Random actions are also near 0%.
 
-- Training curves, mean reward per 1,000-game block (training only, so epsilon 0.2 includes random exploration moves): `outputs/plots/learning_curve_training.png`; numbers in `outputs/qlearning/learning_curve.csv`
-- Frozen-policy evaluation (greedy, 10,000 new games per evaluation seed): `outputs/plots/evaluation_results.png`
-- Q-values and state-action visit counts, one file per run: `outputs/qlearning/q_seed<seed>_eps<epsilon>.csv`
-- Greedy hit/stick tables, usable ace and no usable ace separately: `outputs/qlearning/greedy_seed<seed>_eps<epsilon>_ace.csv` and `..._noace.csv` (H = hit, S = stick, - = tie or state never seen)
+**Variation across batches.** With the deterministic fixed policy the batches are identical (50/50/50). With random
+actions and slipping, the counts differ between batches (0, 2, 0 goals; 0, 3, 4 for the fixed policy), which shows the
+sampling noise of 50 episodes. Because these successes are rare, the differences between batches (and between random
+and fixed under slipping) are small and not strongly reliable.
 
-Training and evaluation are shown in separate figures because they measure different things: the training curve includes exploration and a policy that is still changing, the evaluation is a fixed greedy policy on new games.
+**One success is not enough evidence**: a single success can be luck (for instance random actions reached the goal once without slipping), whereas many episodes with several batches give an estimate of the success rate and its variability.
+
+**Not training.** The fixed policy never changes and nothing is learned from the rewards; the episodes only measure how good
+a fixed (or random) rule is. Training would update the policy or values from experience.
+
+## Part C — Custom solver
+
+### Compare code with paper
+
+Code (`outputs/part_c_value_policy_maps.txt`): V1 equals the paper map above; V2(1,2) = 8.0, V2(1,3) = 10.0, V2(2,3) = 5.21 with the same
+best actions (right, right, up). No discrepancies were found between the paper calculations and the code.
+
+### Values, policies and convergence
+
+Maps: `outputs/part_c_value_policy_maps.txt`. Tolerance 1e-6, safeguard 10000.
+
+| Map | Iterations | Final max change | Converged |
+| --- | --- | --- | --- |
+| Paper | 12 | 2.165e-07 | yes |
+| Extended | 11 | 2.406e-07 | yes |
+
+Final values — paper map (extended map identical except at (3,1) = 1.502 instead of 1.536):
+
+```text
+ 4.20   8.00  10.00    G
+ 2.78    #     5.82    H
+ 1.54   2.82   4.24   2.82
+```
+
+Policy, paper map `>` right `^` up `<` left (extended map differs only at (3,1): `^` instead of `>`):
+
+```text
+ >   >   >   G
+ ^   #   ^   H
+ >   >   ^   <
+```
+
+Tie-breaking: actions whose Q-values are within 1e-9 of the maximum are tied; the first in the order up, right, down, left is chosen.
+No ties occurred at the final values.
+
+### Simulation results
+
+Seeds: episode seed 1000 × batch seed + i; 100-step limit; discounted return r0 + 0.9 r1 + 0.81 r2 + ...
+
+| Map | Batch seed | Goals /50 | Holes /50 | Time limits /50 | Mean steps | Mean discounted return |
+| --- | --- | --- | --- | --- | --- | --- |
+| paper | 11 | 47 | 3 | 0 | 5.04 | 2.230 |
+| paper | 22 | 44 | 6 | 0 | 4.96 | 1.442 |
+| paper | 33 | 42 | 8 | 0 | 4.88 | 0.970 |
+| extended | 11 | 50 | 0 | 0 | 5.00 | 1.502 |
+| extended | 22 | 50 | 0 | 0 | 5.00 | 1.502 |
+| extended | 33 | 50 | 0 | 0 | 5.00 | 1.502 |
+
+(Files: `outputs/part_c_episodes.csv`, `outputs/part_c_sim_summary.md`.)
 
 ### Explain your results
 
-**Prediction versus control.** Model-based evaluation, Monte Carlo and TD(0) only *evaluate* the fixed hit-below-20 policy, they estimate V(s) and never change how the game is played. Q-learning *controls*: it estimates Q(s, a) for both actions and the greedy action in each state defines a new policy, which was then tested on new games.
+**What changed with sand and water.** Almost nothing in values: only the start tile changed, V(3,1) from 1.536 to 1.502, and its
+action changed from right to up. Sand at (3,2) costs -2 instead of -1, which lowers the lower route. Water at (3,4) is
+entered only from (3,3) via a move to the right, which the policy never uses, so it costs nothing; values at (3,2) and
+(3,4) stay the same because the reward belongs to the tile being entered, not the tile being left.
 
-**Terminal updates.** At a terminal transition (the successor is END) the continuation value is 0: the TD target is the reward r, and the Q-learning target is r. At a nonterminal hit the reward is 0 and the target bootstraps from the successor value, or from the maximum Q-value of the successor. Monte Carlo uses the complete return of the finished game.
+**Cost and risk.** On the paper map the best route from the start goes along the bottom and up through the ice (-1 per
+step, V = 1.54), which is cheap but risky: 10% slip into the hole per attempt at the ice. On the extended map sand makes the lower route more expensive, so the
+policy switches to the safe route through the mud (up, up, right, right, right: one -3 step, no randomness), with V = 1.50 slightly below
+the ice route's 1.54 on the paper map but with no risk. The policy near the ice at (2,3) always goes up (towards G), never right (towards H).
 
-**Usable aces.** A usable ace can be counted as 11 or 1, so a hit cannot bust the hand as easily; the same player sum has different future behaviour with and without it. For that reason the flag is part of the state and the value tables and policy tables are reported separately for usable ace and no usable ace.
+**Simulation vs values.** On the paper map the policy reached the goal in 47, 44, 42 of 50 episodes; the mean discounted returns (2.23, 1.44, 0.97; mean about 1.55) vary between batches but average close to V(start) = 1.54. On the extended map the route is deterministic, so every episode gives 1.502, exactly the computed
+value. Finite simulations only estimate the infinite-horizon value: they have a 100-step cut-off and random sampling error, whereas V is an exact expectation over infinitely many steps.
 
-**Exploration and coverage.** Every one of the six Q-tables contains 280 observations (player sums 4–21 with no usable ace and 12–21 with a usable ace, against dealer cards 1–10), so every possible observation was reached, with epsilon 0.2 and with epsilon 0. In evaluation no decision needed the tie/unseen fallback. With epsilon 0, random tie-breaking among equal Q-values supplies the first variety, but an action that looks worse can stay under-sampled; with epsilon 0.2 both actions keep being tried.
+### Rule checks
 
-**Variation across seeds and epsilon.** Seeds change the results slightly: the paired mean rewards for epsilon 0.2 are -0.0676, -0.0661 and -0.0957, and for epsilon 0 they are -0.0664, -0.0760 and -0.0897. Neither epsilon setting is better in all three seeds: epsilon 0.2 is better for seed 22, epsilon 0 for seed 33 and the two are almost equal for seed 11. A single evaluation of 10,000 games has a standard error of about 0.01 in mean reward, so these differences are about the size of the noise. The last training block (1,000 games) is noisier still (standard error about 0.03), so single-block values are not compared.
-
-**Did the learned policy improve on the baseline?** Yes, in all three seeds and for both epsilon settings. The paired mean reward rises from about -0.35 (baseline, win rate about 0.30) to between -0.066 and -0.096 (Q-learning, win rate about 0.41–0.42), an improvement of roughly 0.26–0.29 per game. The learned policies still have a negative mean reward, so they do not beat the dealer on average; they only lose much less than the baseline, which hits on 12–19 whatever the dealer shows.
-
-**Limits.** The conclusions come from three training seeds, 50,000 training games each and 10,000 evaluation games per seed. The state-value comparison in D1 is for one fixed policy only.
-
-## Reproducibility and submission checklist
-
-- [x] Public fork URL inserted above
-- [ ] Original paper calculations committed before the first learning implementation (check `git log`: `a8f26d4`)
-- [ ] Corrections marked without deleting the original work (check the scans)
-- [x] Part C program loads the supplied CSV histories (`data/paper-games.csv`)
-- [x] Part C output saved in `outputs/paper-replay/`
-- [x] Part D game logs, summaries, visit counts, value/Q tables, policies and plots saved under `outputs/`
-- [x] Python, Gymnasium and other dependency versions recorded
-- [x] Exact reproduction and experiment commands added
-- [x] `.env`, API keys and other secrets are not committed
-- [ ] All `FILL` placeholders in this file replaced using actual results (remaining: AI-use, Part A–C scans, Part C paper columns)
-- [ ] AI-use declaration accurately describes the assistance used
+`outputs/rule_checks.txt`: all checks passed — boundary and wall moves (stay in place, reward of the ending tile), ice probabilities sum to 1 for all four
+actions, rewards for mud (-3), sand (-2), water (-5), goal (+10), hole (-10), moving into ice being deterministic, and no transitions or rewards after G/H.
