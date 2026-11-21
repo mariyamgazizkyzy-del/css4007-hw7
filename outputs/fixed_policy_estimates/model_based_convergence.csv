@@ -1,0 +1,10 @@
+seed,games,converged,sweeps,error
+11,100,True,6,
+11,1000,True,12,
+11,10000,True,11,
+22,100,True,6,
+22,1000,True,10,
+22,10000,True,11,
+33,100,True,5,
+33,1000,True,11,
+33,10000,True,11,
